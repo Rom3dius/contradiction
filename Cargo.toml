@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "contradiction-cli",
+    "contradiction-node",
+    "contradiction-models",
+]
+workspace.resolver = "2"
