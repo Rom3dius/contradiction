@@ -6,3 +6,9 @@ pub struct ExamplePost {
     pub age: i32,
     pub email: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DefaultResponse {
+    pub status_code: u8,
+    pub text: String,
+}

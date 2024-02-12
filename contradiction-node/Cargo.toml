@@ -6,13 +6,22 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.79"
 bytes = "1.5.0"
-contradiction-models = { path = "../contradiction-models" }
+fern = "0.6.2"
 futures = "0.3.30"
 http-body-util = "0.1.0"
+humantime = "2.1.0"
 hyper = {version = "1.1.0", features = ["server", "http1"]}
 hyper-util = {version = "0.1.3", features = ["tokio"]}
+log = "0.4.20"
 serde = "1.0.196"
 serde_json = "1.0.113"
 sqlx = {version = "0.7.3", features = [ "runtime-tokio", "tls-native-tls", "sqlite"]}
-tokio = {version = "1.36.0", features = ["net", "rt", "macros", "rt-multi-thread"]}
+tokio = {version = "1.36.0", features = ["net", "rt", "macros", "rt-multi-thread", "signal"]}
 toml = "0.8.9"
+# optional dependencies for risc0
+contradiction-risc0 = { path = "../contradiction-risc0" , optional = true }
+risc0-zkvm = { version = "0.20.1", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+
+[features]
+risc0 = ["contradiction-risc0-host", "contradiction-risc0-methods", "risc0-zkvm", "tracing-subscriber"]

@@ -1,6 +1,41 @@
 use std::net::SocketAddr;
 use serde::{Deserialize, Serialize};
+use log::LevelFilter;
 use toml;
+
+// Custom serializer function
+fn serialize_level_filter<S>(level: &LevelFilter, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let level_str = match level {
+        LevelFilter::Off => "off",
+        LevelFilter::Error => "error",
+        LevelFilter::Warn => "warn",
+        LevelFilter::Info => "info",
+        LevelFilter::Debug => "debug",
+        LevelFilter::Trace => "trace",
+    };
+
+    serializer.serialize_str(level_str)
+}
+
+// Custom deserializer function
+fn deserialize_level_filter<'de, D>(deserializer: D) -> Result<LevelFilter, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    match s.to_lowercase().as_str() {
+        "off" => Ok(LevelFilter::Off),
+        "error" => Ok(LevelFilter::Error),
+        "warn" => Ok(LevelFilter::Warn),
+        "info" => Ok(LevelFilter::Info),
+        "debug" => Ok(LevelFilter::Debug),
+        "trace" => Ok(LevelFilter::Trace),
+        _ => Ok(LevelFilter::Info),
+    } 
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct API {
@@ -18,9 +53,18 @@ pub struct DB {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Log {
+    #[serde(deserialize_with = "deserialize_level_filter", serialize_with = "serialize_level_filter")]
+    pub level: LevelFilter,
+    pub file_output: String,
+    pub stdout: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
     pub api: API,
     pub db: DB,
+    pub log: Log,
 }
 
 impl Config {
@@ -46,6 +90,11 @@ impl Config {
                     pragma: Some("journal_mode=WAL".to_string()),
                     timeout: Some(30),
                 },
+                log: Log {
+                    level: LevelFilter::Info,
+                    file_output: "contradiction.log".to_string(),
+                    stdout: true,
+                }
             };
             let toml_string = toml::to_string_pretty(&default_config).unwrap();
             std::fs::write(config_file, toml_string).expect("Failed to write config file");
