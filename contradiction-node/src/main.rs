@@ -1,23 +1,23 @@
 mod config;
 mod models;
 mod routes;
+mod db;
 
-use sqlx::sqlite::SqlitePool;
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use hyper::service::service_fn;
 use hyper::server::conn::http1;
 use hyper_util::rt::TokioIo as io;
 
 use anyhow::Result;
+use std::sync::Arc;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Load config
     let config = config::Config::read_config();
 
-    // Initialize SQLite connection pool
-    let pool = Arc::new(SqlitePool::connect(&config.db.path).await.expect("Failed to create database connection"));
+    // Setup database
+    let pool = db::setup_database(&config.db).await;
 
     // Set up a TCP listener
     let addr = config.socket_address();
@@ -27,21 +27,16 @@ async fn main() -> Result<()> {
     // Accept incoming connections and serve them
     loop {
         let (stream, _) = listener.accept().await?;
-        let io = io::new(stream);
-        let pool_clone = pool.clone();
+        let pool_clone = pool.clone(); // Clone the pool for each iteration
 
-        // Spawn a new task for each connection
+
         tokio::spawn(async move {
-            if let Err(err) = http1::Builder::new()
-                .serve_connection(io, service_fn(move |req| {
-                    let pool = pool_clone.clone();
-                    async move {
-                        routes::handle_request(req, pool).await
-                    }
-                }))
-                .await
-            {
-                eprintln!("server error: {}", err);
+            let pool = Arc::clone(&pool_clone);
+            let service = service_fn(move |req| routes::handle_request(req, Arc::clone(&pool)));
+            let io = io::new(stream);
+
+            if let Err(err) = http1::Builder::new().serve_connection(io, service).await {
+                println!("Failed to serve connection: {:?}", err);
             }
         });
     }

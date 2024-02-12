@@ -1,27 +1,47 @@
-use hyper::{Request, Response, StatusCode, header, Method, body::Bytes, body::Body};
-use anyhow::Result;
-use http_body_util::Full;
-use serde::{Deserialize, Serialize};
+use bytes::{Buf, Bytes};
+use http_body_util::{BodyExt, Full};
+use hyper::{body::Incoming as IncomingBody, header, Method, Request, Response, StatusCode};
 
-use crate::models::ExamplePost;
-use sqlx::SqlitePool;
+use contradiction_models::{requests, responses};
+
+use sqlx::sqlite::SqlitePool;
 use std::sync::Arc;
-// use http_body_util::Full;
 
-/// DEFINE ROUTES HERE ///
+use anyhow::Result;
 
-pub async fn api_post_example(pool: Arc<SqlitePool>, req: hyper::Request<hyper::body::Incoming>) -> Result<Response<Full<Bytes>>> {
-    let request_json = req.into_body();
-    Ok(Response::new(Full::new(Bytes::from("Hello, World!"))))
+type BoxBody = http_body_util::combinators::BoxBody<Bytes, hyper::Error>;
+
+static INTERNAL_SERVER_ERROR: &[u8] = b"Internal Server Error";
+static NOTFOUND: &[u8] = b"Not Found";
+
+async fn api_post_response(req: Request<IncomingBody>) -> Result<Response<BoxBody>> {
+    let whole_body = req.collect().await?.aggregate();
+    let mut data: requests::TestJsonRequest = serde_json::from_reader(whole_body.reader())?;
+    data.name = "test_value".to_string();
+    let json = serde_json::to_string(&data)?;
+    let response = responses::DefaultResponse { status_code: 200, text: "test_value".to_string() };
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(serde_json::to_vec(&response)?);
+    Ok(response)
 }
 
-/// REQUEST HANDLER ///
-
-pub async fn handle_request(req: hyper::Request<hyper::body::Incoming>, pool: Arc<SqlitePool>) -> Result<Response<Full<Bytes>>> {
+pub async fn handle_request(req: Request<IncomingBody>, pool: Arc<SqlitePool>) -> Result<Response<BoxBody>> {
     match (req.method(), req.uri().path()) {
-        (&Method::POST, "/api/example") => api_post_example(pool, req).await,
+        (&Method::POST, "/json_api") => api_post_response(req).await,
         _ => {
-            Ok(Response::new(Full::new(Bytes::from("Hello, World!"))))
+            // Return 404 not found response.
+            Ok(Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(full(NOTFOUND))
+                .unwrap())
         }
     }
+}
+
+fn full<T: Into<Bytes>>(chunk: T) -> BoxBody {
+    Full::new(chunk.into())
+        .map_err(|never| match never {})
+        .boxed()
 }

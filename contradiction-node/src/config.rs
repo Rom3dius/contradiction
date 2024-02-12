@@ -36,7 +36,7 @@ impl Config {
             // Generate and save config file
             let default_config = Config {
                 api: API {
-                    address: "localhost".to_string(),
+                    address: "0.0.0.0".to_string(),
                     port: 8080,
                 },
                 db: DB {
