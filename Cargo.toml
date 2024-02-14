@@ -1,10 +1,9 @@
 [workspace]
 members = [
     "contradiction-node",
-    "contradiction-risc0-host",
-    "contradiction-risc0-methods",
+    "contradiction-risc0",
 ]
-workspace.resolver = "2"
+resolver = "2"
 
 # Always optimize; building and running the guest takes much longer without optimization.
 [profile.dev]

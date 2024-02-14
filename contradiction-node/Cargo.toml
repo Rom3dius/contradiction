@@ -24,4 +24,8 @@ risc0-zkvm = { version = "0.20.1", optional = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 
 [features]
-risc0 = ["contradiction-risc0-host", "contradiction-risc0-methods", "risc0-zkvm", "tracing-subscriber"]
+default = ["risc0"]
+risc0 = ["contradiction-risc0", "risc0-zkvm", "tracing-subscriber"]
+
+#[cfg(all(feature = "foo", feature = "bar"))]
+# compile_error!("feature \"foo\" and feature \"bar\" cannot be enabled at the same time");

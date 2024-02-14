@@ -1,6 +1,7 @@
 mod config;
 mod models;
-mod routes;
+mod handler;
+mod routes_risc0;
 mod db;
 
 use tokio::net::TcpListener;
@@ -61,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
             let pool_clone = pool.clone();
             tokio::spawn(async move {
-                let service = service_fn(move |req| routes::handle_request(req, Arc::clone(&pool_clone)));
+                let service = service_fn(move |req| handler::handle_request(req, Arc::clone(&pool_clone)));
                 let io = io::new(stream);
 
                 if let Err(err) = http1::Builder::new().serve_connection(io, service).await {

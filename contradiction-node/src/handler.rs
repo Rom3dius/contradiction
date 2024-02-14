@@ -9,46 +9,32 @@ use std::sync::Arc;
 
 use anyhow::Result;
 
+#[cfg(feature="risc0")]
+use crate::risc_routes;
+
 type BoxBody = http_body_util::combinators::BoxBody<Bytes, hyper::Error>;
 
 static INTERNAL_SERVER_ERROR: &[u8] = b"Internal Server Error";
 static NOTFOUND: &[u8] = b"Not Found";
 
-async fn api_post_response(req: Request<IncomingBody>) -> Result<Response<BoxBody>> {
-    let whole_body = req.collect().await?.aggregate();
-    let mut data: models::ExamplePost = serde_json::from_reader(whole_body.reader())?;
-    data.name = "test_value".to_string();
-    
-    // Serialize your response object to JSON.
-    let json = serde_json::to_string(&data)?;
-    
-    let response = models::DefaultResponse { status_code: 200, text: "test_value".to_string() };
-    let serialized_response = serde_json::to_vec(&response)?;
-    
-    let body = Full::new(Bytes::from(serialized_response))?.boxed();
-
-    let response = Response::builder()
+async fn ping() -> Result<Response<BoxBody>> {
+    Ok(response = Response::builder()
         .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/json")
-        .body(body)
-        .expect("Failed to construct the response");
-
-    Ok(response)
+        .header(header::CONTENT_TYPE, "application/text")
+        .body("Pong!")
+        .expect("Failed to construct the response"))
 }
 
 pub async fn handle_request(req: Request<IncomingBody>, pool: Arc<SqlitePool>) -> Result<Response<BoxBody>> {
-    let response = (req.method(), req.uri().path());
-    log::info!("Handling request: {} - {}", response.0.to_string(), response.1.to_string());
-    let response = match response {
-        (&Method::POST, "/json_api") => api_post_response(req).await,
-        _ => {
-            // Return 404 not found response.
-            Ok(Response::builder()
-                .status(StatusCode::NOT_FOUND)
-                .body(full(NOTFOUND))
-                .unwrap())
-        }
-    };
+    let request = (req.method(), req.uri().path());
+    log::info!("Handling request: {} - {}", request.0.to_string(), request.1.to_string());
+
+    if request.0 == &Method::GET && request.1 == "/ping" {
+        ping();
+    }
+
+    #[cfg(feature="risc0")]
+    let response = risc_routes::route_handler(req, pool);
 
     // Error handler
     match response {

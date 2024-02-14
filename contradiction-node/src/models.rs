@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature="risc0")]
+use contradiction_risc0;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExamplePost {
     pub name: String,
