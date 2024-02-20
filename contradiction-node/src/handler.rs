@@ -1,40 +1,92 @@
-use bytes::{Buf, Bytes};
+use bytes::Bytes;
+use bytes::Buf;
 use http_body_util::{BodyExt, Full};
 use hyper::{body::Incoming as IncomingBody, header, Method, Request, Response, StatusCode};
 
-use crate::models;
-
 use sqlx::sqlite::SqlitePool;
-use std::sync::Arc;
+
+use crate::models;
 
 use anyhow::Result;
 
 #[cfg(feature="risc0")]
-use crate::risc_routes;
+use crate::risc0::routes;
 
 type BoxBody = http_body_util::combinators::BoxBody<Bytes, hyper::Error>;
 
 static INTERNAL_SERVER_ERROR: &[u8] = b"Internal Server Error";
-static NOTFOUND: &[u8] = b"Not Found";
 
 async fn ping() -> Result<Response<BoxBody>> {
-    Ok(response = Response::builder()
+    let payload = models::NodeStatus {status: "online".to_string(), timestamp: chrono::Utc::now().naive_utc() };
+    Ok(Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "application/text")
-        .body("Pong!")
+        .body(full(serde_json::to_vec(&payload)?))
         .expect("Failed to construct the response"))
 }
 
-pub async fn handle_request(req: Request<IncomingBody>, pool: Arc<SqlitePool>) -> Result<Response<BoxBody>> {
+async fn register_node(req: Request<IncomingBody>, db: SqlitePool) -> Result<Response<BoxBody>> {
+    let node: models::Node = serde_json::from_reader(req.collect().await?.aggregate().reader())?;
+    
+    let exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM nodes WHERE address = ? AND port = ?)"
+    )
+    .bind(&node.address)
+    .bind(node.port as i32) 
+    .fetch_one(&db)
+    .await?;
+
+    if !exists {
+        sqlx::query(
+            "INSERT INTO nodes (address, port) VALUES (?, ?)"
+        )
+        .bind(&node.address)
+        .bind(node.port as i32) 
+        .execute(&db)
+        .await?;
+
+        
+        Ok(Response::builder()
+            .status(StatusCode::CREATED)
+            .body(full("Node registered successfully."))
+            .expect("Failed to create node response")) 
+    } else {
+        // Respond that the node already exists
+        Ok(Response::builder()
+            .status(StatusCode::CONFLICT)
+            .body(full("Node already exists."))
+            .expect("Failed to create node response")) 
+    }
+}
+
+async fn nodes(db: SqlitePool) -> Result<Response<BoxBody>> {
+    let payload: Vec<models::Node> = sqlx::query_as::<_, models::Node>(
+        "SELECT address, port FROM nodes"
+    )
+    .fetch_all(&db)
+    .await?;
+
+    let response = Response::builder()
+        .status(StatusCode::CREATED)
+        .header(header::CONTENT_TYPE, "application/json")
+        .body(full(serde_json::to_vec(&payload)?))?;
+    
+    Ok(response)
+}
+
+pub async fn handle_request(req: Request<IncomingBody>, pool: SqlitePool) -> Result<Response<BoxBody>> {
     let request = (req.method(), req.uri().path());
     log::info!("Handling request: {} - {}", request.0.to_string(), request.1.to_string());
 
-    if request.0 == &Method::GET && request.1 == "/ping" {
-        ping();
-    }
-
-    #[cfg(feature="risc0")]
-    let response = risc_routes::route_handler(req, pool);
+    let response: Result<Response<BoxBody>> = match request {
+        (&Method::GET, "/ping") => ping().await,
+        (&Method::POST, "/register_node") => register_node(req, pool).await,
+        (&Method::GET, "/registered_nodes") => nodes(pool).await,
+        _ => {
+            #[cfg(feature="risc0")]
+            routes::route_handler(req, pool).await
+        },
+    };
 
     // Error handler
     match response {
@@ -62,7 +114,7 @@ pub async fn handle_request(req: Request<IncomingBody>, pool: Arc<SqlitePool>) -
     }
 }
 
-fn full<T: Into<Bytes>>(chunk: T) -> BoxBody {
+pub fn full<T: Into<Bytes>>(chunk: T) -> BoxBody {
     Full::new(chunk.into())
         .map_err(|never| match never {})
         .boxed()

@@ -1,5 +1,5 @@
 [package]
-name = "contradiction-risc0"
+name = "contradiction-risc0-methods"
 version = "0.1.0"
 edition = "2021"
 

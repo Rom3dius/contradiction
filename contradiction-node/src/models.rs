@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
-
-#[cfg(feature="risc0")]
-use contradiction_risc0;
+use sqlx::FromRow;
+use chrono;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExamplePost {
@@ -14,4 +13,17 @@ pub struct ExamplePost {
 pub struct DefaultResponse {
     pub status_code: u8,
     pub text: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, FromRow)]
+pub struct Node {
+    pub address: String,
+    pub port: u8,
+    pub last_ping_at: chrono::NaiveDateTime,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NodeStatus {
+    pub status: String,
+    pub timestamp: chrono::NaiveDateTime,
 }

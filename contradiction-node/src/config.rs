@@ -61,10 +61,17 @@ pub struct Log {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Node {
+    pub address: String,
+    pub port: u16,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
     pub api: API,
     pub db: DB,
     pub log: Log,
+    pub nodes: Option<Vec<Node>>,
 }
 
 impl Config {
@@ -94,7 +101,8 @@ impl Config {
                     level: LevelFilter::Info,
                     file_output: "contradiction.log".to_string(),
                     stdout: true,
-                }
+                },
+                nodes: None,
             };
             let toml_string = toml::to_string_pretty(&default_config).unwrap();
             std::fs::write(config_file, toml_string).expect("Failed to write config file");

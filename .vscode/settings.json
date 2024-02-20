@@ -1,5 +1,0 @@
-{
-    "rust-analyzer.linkedProjects": [
-        "./contradiction-risc0/hypotonuse/Cargo.toml"
-    ]
-}

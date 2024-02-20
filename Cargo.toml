@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "contradiction-node",
-    "contradiction-risc0",
+    "contradiction-risc0-methods",
 ]
 resolver = "2"
 
