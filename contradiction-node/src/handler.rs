@@ -1,3 +1,5 @@
+use std::io::Error;
+
 use bytes::Bytes;
 use bytes::Buf;
 use http_body_util::{BodyExt, Full};
@@ -92,11 +94,18 @@ pub async fn handle_request(req: Request<IncomingBody>, pool: SqlitePool) -> Res
     match response {
         Ok(res) => Ok(res),
         Err(err) => {
-            if err.downcast_ref::<serde_json::Error>().is_some() {
+            if err.to_string().contains("No matching GET condition") {
+                log::error!("Page not found");
+                // Return 404 not found response.
+                Ok(Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(full("NOT FOUND"))
+                    .unwrap())
+            } else if err.downcast_ref::<serde_json::Error>().is_some() || err.to_string().contains("No/malformed query string") {
                 Ok(Response::builder()
                     .status(StatusCode::BAD_REQUEST)
-                    .body(full(INTERNAL_SERVER_ERROR))
-                    .expect("Failed to construct the JSON error response"))
+                    .body(full(format!("Bad request, double check your JSON and/or the request parameters: {}", err.to_string())))
+                    .expect("Failed to construct bad request response."))
             } else if err.downcast_ref::<sqlx::Error>().is_some() {
                 log::error!("Database error: {}", err);
                 Ok(Response::builder()
@@ -104,11 +113,16 @@ pub async fn handle_request(req: Request<IncomingBody>, pool: SqlitePool) -> Res
                     .body(full(INTERNAL_SERVER_ERROR))
                     .expect("Failed to construct the database error response"))
             } else {
-                log::error!("Internal server error: {}", err);
+                if let Some(source) = err.source() {
+                    log::error!("Internal server error: {}", source);
+                    
+                } else {
+                    log::error!("Internal server error: {}", err);
+                }
                 Ok(Response::builder()
                     .status(StatusCode::INTERNAL_SERVER_ERROR)
                     .body(full(INTERNAL_SERVER_ERROR))
-                    .expect("Failed to construct the internal server error response"))
+                    .expect("Failed to internal server error response"))
             }
         }
     }

@@ -9,13 +9,15 @@ pub trait IntoExecutorEnv {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum CircuitInputs {
-    hypotenuse(Hypotenuse)
+    Hypotenuse(Hypotenuse),
+    LinearPolynomial(LinearPolynomial),
 }
 
 impl IntoExecutorEnv for CircuitInputs {
     fn write_to_env(&self, builder: &mut ExecutorEnvBuilder) -> Result<()> {
         match self {
-            CircuitInputs::hypotenuse(h) => h.write_to_env(builder),
+            CircuitInputs::Hypotenuse(h) => h.write_to_env(builder),
+            CircuitInputs::LinearPolynomial(l) => l.write_to_env(builder),
         }
     }
 }
@@ -30,6 +32,22 @@ impl IntoExecutorEnv for Hypotenuse {
     fn write_to_env(&self, builder: &mut ExecutorEnvBuilder) -> Result<()> {
         builder.write(&self.x)?;
         builder.write(&self.y)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct LinearPolynomial {
+    a: u32,
+    b: u32,
+    c: u32,
+}
+
+impl IntoExecutorEnv for LinearPolynomial {
+    fn write_to_env(&self, builder: &mut ExecutorEnvBuilder) -> Result<()> {
+        builder.write(&self.a)?;
+        builder.write(&self.b)?;
+        builder.write(&self.c)?;
         Ok(())
     }
 }

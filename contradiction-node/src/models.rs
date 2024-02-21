@@ -27,3 +27,8 @@ pub struct NodeStatus {
     pub status: String,
     pub timestamp: chrono::NaiveDateTime,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct QueryParams {
+    pub uuid: String,
+}

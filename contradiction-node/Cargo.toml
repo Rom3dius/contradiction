@@ -21,10 +21,12 @@ toml = "0.8.9"
 lazy_static = "1.4.0"
 chrono = {version = "0.4.34", features = [ "serde" ]}
 reqwest = { version="0.11.24", features = [ "serde_json", "hyper-rustls", "hyper-tls" ]}
+uuid = {version = "1.7.0", features = [ "v4", "serde" ]}
 # optional dependencies for risc0
 contradiction-risc0-methods = { path = "../contradiction-risc0-methods" , optional = true }
 risc0-zkvm = { version = "0.20.1", optional = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+url = "2.5.0"
 
 [features]
 default = ["risc0"]
