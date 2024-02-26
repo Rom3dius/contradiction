@@ -101,7 +101,7 @@ pub async fn handle_request(req: Request<IncomingBody>, pool: SqlitePool) -> Res
                     .status(StatusCode::NOT_FOUND)
                     .body(full("NOT FOUND"))
                     .unwrap())
-            } else if err.downcast_ref::<serde_json::Error>().is_some() || err.to_string().contains("No/malformed query string") {
+            } else if err.downcast_ref::<serde_json::Error>().is_some() || err.to_string().contains("No/malformed query string") || err.to_string().contains("UUID") {
                 Ok(Response::builder()
                     .status(StatusCode::BAD_REQUEST)
                     .body(full(format!("Bad request, double check your JSON and/or the request parameters: {}", err.to_string())))

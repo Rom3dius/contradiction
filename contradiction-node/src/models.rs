@@ -11,7 +11,7 @@ pub struct ExamplePost {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DefaultResponse {
-    pub status_code: u8,
+    pub status_code: u16,
     pub text: String,
 }
 

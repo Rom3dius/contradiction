@@ -28,26 +28,43 @@ pub async fn setup_database(cfg: &config::DB) -> SqlitePool {
     SqlitePool::connect(&cfg.path).await.expect("Failed to create database connection")
 }
 
-pub async fn insert_receipt<T: Serialize>(pool: &SqlitePool, receipt: T) -> Result<Uuid> {
-    // generate UUID and check for uniqueness
-    let uuid = loop {
-        let uuid = Uuid::new_v4();
-        let exists = sqlx::query("SELECT EXISTS(SELECT 1 FROM receipts WHERE uuid = ?)")
-            .bind(uuid.to_string())
-            .fetch_one(pool)
-            .await
-            .expect("Failed to check for receipt existence")
-            .get::<bool, _>(0);
-        if !exists {
-            break uuid;
+pub async fn insert_receipt<T: Serialize>(pool: &SqlitePool, receipt: T, uuid: Option<String>) -> Result<Uuid> {
+    let uuid = match uuid {
+        Some(u) => {
+            let exists = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM receipts WHERE uuid = ?)")
+                .bind(&u)
+                .fetch_one(pool)
+                .await?;
+
+            if exists {
+                // If the UUID exists, return an error
+                return Err(anyhow::anyhow!("UUID already exists"));
+            }
+            Uuid::parse_str(&u).map_err(|_| anyhow::anyhow!("Invalid UUID format"))?
+        },
+        None => {
+            // Generate a new unique UUID
+            loop {
+                let new_uuid = Uuid::new_v4();
+                let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM receipts WHERE uuid = ?)")
+                    .bind(new_uuid.to_string())
+                    .fetch_one(pool)
+                    .await?;
+
+                if !exists {
+                    break new_uuid;
+                }
+            }
         }
     };
-    _ = sqlx::query("INSERT INTO receipts (uuid, receipt) VALUES (?, ?)")
+
+    // Insert the receipt with the UUID
+    sqlx::query("INSERT INTO receipts (uuid, receipt) VALUES (?, ?)")
         .bind(uuid.to_string())
-        .bind(serde_json::to_string(&receipt).unwrap())
+        .bind(serde_json::to_string(&receipt).expect("Failed to serialize receipt"))
         .execute(pool)
-        .await
-        .map(|_| ());
+        .await?;
+
     Ok(uuid)
 }
 

@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let pool = db::setup_database(&config.db).await;
     log::debug!("Created database pool.");
 
-    // Handle nodes
+    // Handle nodes in config
     if let Some(nodes) = &config.nodes {
         for node in nodes {
             // Construct the URI
@@ -68,11 +68,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             // Validate the URI
             match hyper::Uri::from_str(&uri) {
                 Ok(_) => {
-                    // Insert the node into the database
+                    // Insert the node into the database, ignoring the insert on conflict
                     let _ = sqlx::query(
                         "
                         INSERT INTO nodes (address, port)
                         VALUES ($1, $2)
+                        ON CONFLICT (address, port)
+                        DO NOTHING
                         ",
                     )
                     .bind(&node.address)
@@ -116,6 +118,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     });
 
+    // Start updating the nodes!
     let update_nodes = tokio::spawn(async move {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;

@@ -1,4 +1,4 @@
-use risc0_zkvm::ExecutorEnvBuilder;
+use risc0_zkvm::{ExecutorEnvBuilder, Receipt};
 use serde::{Serialize, Deserialize};
 use contradiction_risc0_methods as methods;
 use anyhow::Result;
@@ -7,7 +7,7 @@ pub trait IntoExecutorEnv {
     fn write_to_env(&self, builder: &mut ExecutorEnvBuilder) -> Result<()>;
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize,)]
 pub enum CircuitInputs {
     Hypotenuse(Hypotenuse),
     LinearPolynomial(LinearPolynomial),
@@ -58,4 +58,11 @@ pub fn fetch_circuit<T: IntoExecutorEnv>(input: &T) -> (&'static [u8], [u32; 8])
             (methods::HYPOTENUSE_ELF, methods::HYPOTENUSE_ID)
         }
     }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct IncomingReceipt {
+    pub uuid: String,
+    pub circuit: CircuitInputs,
+    pub receipt: Receipt,
 }

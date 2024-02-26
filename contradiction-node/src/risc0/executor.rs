@@ -3,10 +3,10 @@ use risc0_zkvm::Receipt;
 use anyhow::{Result, Error};
 use crate::risc0::models;
 
-pub fn execute_circuit<T: models::IntoExecutorEnv>(input: T) -> Result<Receipt> {
+pub fn execute_circuit<T: models::IntoExecutorEnv>(input: &T) -> Result<Receipt> {
     let mut env_builder = ExecutorEnv::builder();
 
-    let (elf, id) = models::fetch_circuit(&input);
+    let (elf, id) = models::fetch_circuit(input);
     
     match input.write_to_env(&mut env_builder) {
         Ok(_) => {},
